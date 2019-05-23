@@ -19,6 +19,10 @@ from requests.packages.urllib3.poolmanager import PoolManager
 
 from .exceptions import AuthCanceled, AuthForbidden, AuthUnreachableProvider
 
+import certifi
+import urllib3.contrib.pyopenssl
+urllib3.contrib.pyopenssl.inject_into_urllib3()
+
 
 SETTING_PREFIX = 'SOCIAL_AUTH'
 
@@ -42,7 +46,9 @@ class SSLHttpAdapter(HTTPAdapter):
             num_pools=connections,
             maxsize=maxsize,
             block=block,
-            ssl_version=self.ssl_protocol
+            ssl_version=self.ssl_protocol,
+            cert_reqs='CERT_REQUIRED',
+            ca_certs=certifi.where()
         )
 
     @classmethod

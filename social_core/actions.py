@@ -1,5 +1,10 @@
 from six.moves.urllib_parse import quote
-
+try:
+    from django.core.urlresolvers import reverse
+    from django.http import HttpResponseRedirect
+    from fundedbyme.twostepauth.models import UserAuthToken
+except ImportError:
+    pass
 from .utils import sanitize_redirect, user_is_authenticated, \
                    user_is_active, partial_pipeline_data, setting_url
 
@@ -27,7 +32,7 @@ def do_auth(backend, redirect_name='next'):
     return backend.start()
 
 
-def do_complete(backend, login, user=None, redirect_name='next',
+def do_complete(backend, login, user=None, redirect_name='next', request=None,
                 *args, **kwargs):
     data = backend.strategy.request_data()
 
@@ -65,6 +70,13 @@ def do_complete(backend, login, user=None, redirect_name='next',
             # catch is_new/social_user in case login() resets the instance
             is_new = getattr(user, 'is_new', False)
             social_user = user.social_user
+            try:
+                if user.userprofile.two_step_auth_enabled:
+                    uat, _ = UserAuthToken.objects.get_or_create(user=user)
+                    request.session[str(user.pk)] = uat.encrypted_seed
+                    return HttpResponseRedirect(reverse('authenticator', kwargs={'user_id': user.pk}))
+            except Exception:
+                pass
             login(backend, user, social_user)
             # store last login backend name in session
             backend.strategy.session_set('social_auth_last_login_backend',
